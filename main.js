@@ -1,10 +1,20 @@
-let bounds = {w: 100, h: 100}
+let bounds = {w: 64, h: 64}
 let data = new Array(bounds.w * bounds.h)
 let wrapAround = true
 let movement = 0
 
 let camera = {x: 0, y: 0, speed: 4}
 let keys = {}
+
+
+let octaves = 8
+let amplitude = 360
+let roughness = 0.3
+
+let seedFunc = xmur3(`bananas`)
+let seed = seedFunc()
+console.log(`seed: ${seed}`)
+let nextRandom = mulberry32(seed)
 
 let canvas = document.getElementsByTagName('canvas')[0]
 canvas.width = bounds.w
@@ -24,6 +34,41 @@ function animate() {
     }
     if(keys["d"] || keys["ArrowRight"]) {
         camera.x += camera.speed
+    }
+
+    if(keys["1"]) {
+        octaves -= 1
+        octaves = Math.max(1, octaves)
+        keys["1"] = false
+    }
+
+    if(keys["2"]) {
+        octaves += 1
+        octaves = Math.min(8, octaves)
+        keys["2"] = false
+    }
+
+    if(keys["3"]) {
+        amplitude -= 1
+        amplitude = Math.max(1, amplitude)
+        keys["3"] = false
+    }
+
+    if(keys["4"]) {
+        amplitude += 1
+        keys["4"] = false
+    }
+
+    if(keys["5"]) {
+        roughness -= 0.05
+        roughness = Math.max(0, roughness)
+        keys["5"] = false
+    }
+
+    if(keys["6"]) {
+        roughness += 0.05
+        roughness = Math.min(1, roughness)
+        keys["6"] = false
     }
     let dataCopy = [...data]
     context.clearRect(0,0,bounds.w, bounds.h)
@@ -51,18 +96,85 @@ function animate() {
 }
 
 async function processFrame() {
+    console.log(octaves, amplitude, roughness)
     for(let i = 0; i < data.length; i++) {
         let position = {x:camera.x + i % bounds.w,y:camera.y + Math.floor(i / bounds.w)}
-        let noiseResult = perlinNoise(position, bounds)
+        let noiseResult = getPerlinNoise(position)
         data[i] = noiseResult
     }
 }
 
-window.addEventListener('keydown', e => {keys[e.key] = true})
+window.addEventListener('keydown', e => {console.log(e.key);keys[e.key] = true})
 window.addEventListener('keyup', e => {keys[e.key] = false})
 
 setInterval(processFrame, 32)
 requestAnimationFrame(animate)
+
+function getPerlinNoise(position) {
+    let total = 0
+    let d = Math.pow(2, octaves - 1)
+    for(let i = 0; i < octaves; i++) {
+        let frequencyStep = Math.pow(2, i) / d
+        let amplitudeStep = Math.pow(roughness, i) * amplitude
+        total += interpolatedNoise({x: position.x * frequencyStep, y: position.y * frequencyStep}) * amplitudeStep
+    }
+
+    return total
+}
+
+function interpolatedNoise(position) {
+     //pull out the fractional bits of the position to use
+     let integerPosition = {x:parseInt(position.x), y: parseInt(position.y)}
+     let fractionalPosition = {x: position.x - integerPosition.x, y: position.y - integerPosition.y}
+ 
+     //first get the corners of each integer pixel
+     let topLeft = {x:integerPosition.x, y:integerPosition.y}
+     let topRight = {x:integerPosition.x+1, y:integerPosition.y}
+     let bottomLeft = {x:integerPosition.x, y:integerPosition.y+1}
+     let bottomRight = {x:integerPosition.x+1, y:integerPosition.y+1}
+
+     let a = getSmoothNoise(topLeft)
+     let b = getSmoothNoise(topRight)
+     let c = getSmoothNoise(bottomLeft)
+     let d = getSmoothNoise(bottomRight)
+
+     let topInterpolated = cosineInterpolate(a, b, fractionalPosition.x)
+     let bottomInterpolated = cosineInterpolate(c, d, fractionalPosition.x)
+
+     return cosineInterpolate(topInterpolated, bottomInterpolated, fractionalPosition.y)
+}
+
+function getSmoothNoise(position) {
+    let corners = (
+        getPositionRand({x: position.x - 1, y: position.y - 1}) +
+        getPositionRand({x: position.x + 1, y: position.y - 1}) +
+        getPositionRand({x: position.x - 1, y: position.y + 1}) +
+        getPositionRand({x: position.x + 1, y: position.y + 1})
+    )/16.0
+
+    let sides = (
+        getPositionRand({x:position.x - 1, y:position.y})+
+        getPositionRand({x:position.x + 1, y:position.y})+
+        getPositionRand({x:position.x, y:position.y-1})+
+        getPositionRand({x:position.x, y:position.y+1})
+    )/8.0
+
+    let center = getPositionRand(position) / 4.0
+
+    return corners + sides + center
+}
+
+function getPositionRand(position) {
+    let positionSeed = xmur3(`${position.x * 49632 * position.y * 325176 + seed}`)
+    let rand = mulberry32(positionSeed())
+    return rand()
+}
+
+function cosineInterpolate(a, b, blend) {
+    let theta = blend * Math.PI
+    let semicircleHalfway = 1 - Math.cos(theta) * 0.5
+    return (1.0 - semicircleHalfway) * a + semicircleHalfway * b
+}
 
 
 function perlinNoise(position, bounds) {
@@ -119,14 +231,14 @@ function noise(position, bounds){
     
 }
 
-function getNoise(position, bounds){
+function getNoise(position, bounds, seed = "bananas"){
     // let xSeed = xmur3(`${position.x}`)
     // let ySeed = xmur3(`${position.y}`)
     // let boundSeed = xmur3(`${bounds.w}`)
     // let timeSeed = xmur3(`${new Date().getTime()}`)
     // return sfc32(timeSeed(),xSeed(), ySeed(), boundSeed(), )()
 
-    let positionSeed = xmur3(`${position.x + position.y * bounds.w}`)
+    let positionSeed = xmur3(`${position.x + position.y * bounds.w}${seed}`)
     return mulberry32(positionSeed())()
 }
 
