@@ -61,16 +61,7 @@ async function processFrame() {
 window.addEventListener('keydown', e => {keys[e.key] = true})
 window.addEventListener('keyup', e => {keys[e.key] = false})
 
-function run(delay = 32) {
-    setTimeout(() => {
-        let startTime = performance.now()
-        processFrame()
-        let finishTime = performance.now()
-        let delta = (finishTime - startTime)
-        run(Math.max(0, delta))
-    }, delay)
-}
-run()
+setInterval(processFrame, 32)
 requestAnimationFrame(animate)
 
 
