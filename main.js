@@ -3,12 +3,12 @@ let data = new Array(bounds.w * bounds.h)
 let wrapAround = true
 let movement = 0
 
-let camera = {x: 0, y: 0, speed: 4}
+let camera = {x: 512, y: 512, speed: 2}
 let keys = {}
 
 let range = {min: 9999, max: -9999}
 
-let octaves = 2
-let amplitude = 2
-let roughness = 0.
+let octaves = 5
+let amplitude = 30
+let roughness = 0.60
 
