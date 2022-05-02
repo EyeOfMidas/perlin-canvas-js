@@ -167,7 +167,7 @@ window.addEventListener("touchstart", e => {
 });
 
 window.addEventListener("touchmove", e => {
-	if(e.touches.length == 2) {
+	if(e.touches.length == 1) {
 		let currentPosition = {
 			x: e.touches[0].clientX,
 			y: e.touches[0].clientY,
